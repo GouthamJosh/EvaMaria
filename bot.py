@@ -2,6 +2,7 @@ import logging
 import logging.config
 import asyncio
 import os
+import threading
 
 # ---------------- LOGGING ---------------- #
 logging.config.fileConfig("logging.conf")
@@ -46,6 +47,14 @@ async def start_webserver():
 
     logging.info(f"🌐 Web service running on port {PORT}")
 
+    # keep web server alive
+    while True:
+        await asyncio.sleep(3600)
+
+
+def run_webserver():
+    asyncio.run(start_webserver())
+
 
 # ================= BOT CLIENT ================= #
 class Bot(Client):
@@ -62,7 +71,7 @@ class Bot(Client):
         )
 
     async def start(self):
-        # Load banned users/chats
+        # Load banned users/chats (Motor uses Pyrogram loop ✔)
         b_users, b_chats = await db.get_banned()
         temp.BANNED_USERS = b_users
         temp.BANNED_CHATS = b_chats
@@ -110,15 +119,11 @@ class Bot(Client):
                 current += 1
 
 
-# ================= MAIN ENTRY ================= #
-bot = Bot()
-
-
-async def main():
-    await start_webserver()   # Start HTTP service
-    await bot.start()         # Start Telegram bot
-    await asyncio.Event().wait()  # Keep alive forever
-
-
+# ================= MAIN ================= #
 if __name__ == "__main__":
-    asyncio.run(main())
+    # Start web server in background thread
+    threading.Thread(target=run_webserver, daemon=True).start()
+
+    # Start Pyrogram (owns main event loop)
+    bot = Bot()
+    bot.run()
