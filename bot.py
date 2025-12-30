@@ -16,6 +16,17 @@ from utils import temp
 from typing import Union, Optional, AsyncGenerator
 from pyrogram import types
 
+# peer id invaild fixxx
+from pyrogram import utils as pyroutils
+pyroutils.MIN_CHAT_ID = -999999999999
+pyroutils.MIN_CHANNEL_ID = -100999999999999
+
+from plugins.webcode import bot_run
+from os import environ
+from aiohttp import web as webserver
+
+PORT_CODE = environ.get("PORT", "8080")
+
 class Bot(Client):
 
     def __init__(self):
@@ -43,6 +54,12 @@ class Bot(Client):
         logging.info(f"{me.first_name} with for Pyrogram v{__version__} (Layer {layer}) started on {me.username}.")
         logging.info(LOG_STR)
 
+        client = webserver.AppRunner(await bot_run())
+        await client.setup()
+        bind_address = "0.0.0.0"
+        await webserver.TCPSite(client, bind_address,
+        PORT_CODE).start()
+
     async def stop(self, *args):
         await super().stop()
         logging.info("Bot stopped. Bye.")
@@ -53,29 +70,6 @@ class Bot(Client):
         limit: int,
         offset: int = 0,
     ) -> Optional[AsyncGenerator["types.Message", None]]:
-        """Iterate through a chat sequentially.
-        This convenience method does the same as repeatedly calling :meth:`~pyrogram.Client.get_messages` in a loop, thus saving
-        you from the hassle of setting up boilerplate code. It is useful for getting the whole chat messages with a
-        single call.
-        Parameters:
-            chat_id (``int`` | ``str``):
-                Unique identifier (int) or username (str) of the target chat.
-                For your personal cloud (Saved Messages) you can simply use "me" or "self".
-                For a contact that exists in your Telegram address book you can use his phone number (str).
-                
-            limit (``int``):
-                Identifier of the last message to be returned.
-                
-            offset (``int``, *optional*):
-                Identifier of the first message to be returned.
-                Defaults to 0.
-        Returns:
-            ``Generator``: A generator yielding :obj:`~pyrogram.types.Message` objects.
-        Example:
-            .. code-block:: python
-                for message in app.iter_messages("pyrogram", 1, 15000):
-                    print(message.text)
-        """
         current = offset
         while True:
             new_diff = min(200, limit - current)
